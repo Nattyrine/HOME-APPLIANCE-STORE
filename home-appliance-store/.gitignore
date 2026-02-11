@@ -1,0 +1,44 @@
+# Node
+node_modules/
+
+# Composer / PHP
+vendor/
+composer.lock
+
+# Environment
+.env
+.env.*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs, caches
+logs/
+cache/
+*.log
+
+# Database files
+*.sqlite
+*.db
+
+# Build artifacts
+dist/
+build/
+
+# SQL dumps (optional)
+sql/*.sql
+
+# OS generated files
+ehthumbs.db
+Icon?
+
+# Windows
+Thumbs.db
+Desktop.ini

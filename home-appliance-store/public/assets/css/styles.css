@@ -1,0 +1,5 @@
+/* assets/css/styles.css */
+body { font-family: Arial, Helvetica, sans-serif; margin: 24px; }
+h1 { color: #2c3e50; }
+#products, #orders, #cart { margin-top: 12px; }
+.product { border: 1px solid #ddd; padding: 8px; margin: 6px 0; }
