@@ -9,6 +9,22 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../config/database.php';  
 
+// Ensure $conn is available (fallbacks if different variable name used in config)
+if (!isset($conn)) {
+    if (isset($pdo)) {
+        $conn = $pdo;
+    } elseif (isset($dbh)) {
+        $conn = $dbh;
+    } elseif (defined('DB_DSN')) {
+        // Try to construct PDO from defined constants
+        $user = defined('DB_USER') ? DB_USER : null;
+        $pass = defined('DB_PASS') ? DB_PASS : null;
+        $conn = new PDO(DB_DSN, $user, $pass);
+    } else {
+        die('Database connection not found.');
+    }
+}
+
 $name = $_SESSION['name'];  
 
 // Fetch product count
@@ -17,9 +33,9 @@ $total_products = $stmtProd->fetch(PDO::FETCH_ASSOC)['total_products'];
 
 // Fetch orders info
 $stmtOrders = $conn->query("
-    SELECT o.order_id, u.name AS customer_name, u.email AS customer_email
+    SELECT o.id, u.name AS customer_name, u.email AS customer_email
     FROM orders o
-    JOIN users u ON o.user_id = u.user_id
+    JOIN users u ON o.user_id = u.id
 ");
 $orders = $stmtOrders->fetchAll(PDO::FETCH_ASSOC);
 $total_orders = count($orders);
@@ -139,7 +155,7 @@ h2 { margin-top: 0; }
 <div class="topbar">
 
     <div class="logo">
-        <img src="../assets/images/logo.png" alt="Logo">
+        <img src="assets/images/logo.png" alt="Logo">
     </div>
 
     <a href="profile.php" class="profile">
@@ -176,11 +192,11 @@ h2 { margin-top: 0; }
             <li>ORDERS FROM <?= $total_orders ?> CUSTOMERS</li>
             <?php foreach($orders as $order): ?>
                 <li>
-                    <a href="order_details.php?order_id=<?= $order['order_id'] ?>">
+                    <a href="order_details.php?order_id=<?= $order['id'] ?>">
                         <?= htmlspecialchars($order['customer_name']) ?>  (<?= htmlspecialchars($order['customer_email']) ?>)
                     </a>
-                    &nbsp;|&nbsp;
-                    <a href="delete_order.php?order_id=<?= $order['order_id'] ?>" style="color: red;" onclick="return confirm('Are you sure you want to delete this order?');">
+                    &nbsp;&nbsp;
+                    <a href="delete_order.php?order_id=<?= $order['id'] ?>" style="color: red;" onclick="return confirm('Are you sure you want to delete this order?');">
                         Delete
                 </li>
             <?php endforeach; ?>

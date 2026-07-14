@@ -2,9 +2,28 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 
+// Ensure we have a PDO connection in $conn. Some setups may provide $pdo or a differently-named variable
+if(!isset($conn)){
+    if(isset($pdo) && $pdo instanceof PDO){
+        $conn = $pdo;
+    } else {
+        // Fallback: attempt to create a PDO connection from environment or sensible defaults
+        $db_host = getenv('DB_HOST') ?: '127.0.0.1';
+        $db_name = getenv('DB_NAME') ?: 'home_appliance_store';
+        $db_user = getenv('DB_USER') ?: 'root';
+        $db_pass = getenv('DB_PASS') ?: '';
+        try {
+            $conn = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass, [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+        } catch (PDOException $e) {
+            // If we cannot connect, stop with a clear message
+            die('Database connection error: ' . $e->getMessage());
+        }
+    }
+}
+
 // Guests only (redirect logged-in users to main index)
 if(isset($_SESSION['user_id'])){
-    header("Location: register.php"); // your real home page after login
+    header("Location: index.php"); // your real home page after login
     exit();
 }
 
@@ -16,8 +35,8 @@ $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 $categoryProducts = [];
 foreach($categories as $cat) {
     $prodStmt = $conn->prepare("SELECT * FROM products WHERE category_id=:cat_id ORDER BY name ASC");
-    $prodStmt->execute([':cat_id'=>$cat['category_id']]);
-    $categoryProducts[$cat['category_id']] = $prodStmt->fetchAll(PDO::FETCH_ASSOC);
+    $prodStmt->execute([':cat_id'=>$cat['id']]);
+    $categoryProducts[$cat['id']] = $prodStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Motivational messages for new users
@@ -122,8 +141,8 @@ nav a { margin-left:15px; text-decoration:none; color:#002b5c; font-weight:bold;
         <div class="category">
             <h3><?= htmlspecialchars($cat['name']) ?></h3>
             <div class="products">
-                <?php if(isset($categoryProducts[$cat['category_id']]) && count($categoryProducts[$cat['category_id']])>0): ?>
-                    <?php foreach($categoryProducts[$cat['category_id']] as $prod): ?>
+                <?php if(isset($categoryProducts[$cat['id']]) && count($categoryProducts[$cat['id']])>0): ?>
+                    <?php foreach($categoryProducts[$cat['id']] as $prod): ?>
                         <div class="product-card">
                             <div class="img-box">
                                 <img src="assets/images/<?= $prod['image'] ?? 'default.png' ?>" alt="<?= htmlspecialchars($prod['name']) ?>">

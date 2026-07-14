@@ -9,6 +9,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../config/database.php';  
 
+// If the included file didn't create $conn, create a default PDO connection
+if (!isset($conn) || !$conn) {
+    try {
+        $conn = new PDO('mysql:host=127.0.0.1;dbname=home_appliance_store;charset=utf8mb4', 'root', '');
+        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    } catch (PDOException $e) {
+        // Fail gracefully if no connection is available
+        die('Database connection not found.');
+    }
+}
+
 // Fetch categories for dropdown  
 $catStmt = $conn->prepare("SELECT * FROM categories ORDER BY name ASC");  
 $catStmt->execute();  
@@ -17,7 +28,8 @@ $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 $message = '';  
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {  
-    $name = $_POST['name'] ?? '';  
+    $name = $_POST['name'] ?? ''; 
+    $description= $_POST['description'] ?? '';  
     $price = $_POST['price'] ?? 0;  
     $stock = $_POST['stock'] ?? 0;  
     $category_id = $_POST['category_id'] ?? null;  
@@ -28,14 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $image_name = time() . '_' . $_FILES['image']['name'];  
         move_uploaded_file(
             $_FILES['image']['tmp_name'], 
-            __DIR__ . '/../assets/images/' . $image_name
+            __DIR__ . '/assets/images/' . $image_name
         );  
     }  
 
-    $stmt = $conn->prepare("INSERT INTO products (name, price, stock, category_id, image) 
-                            VALUES (:name, :price, :stock, :category_id, :image)");  
+    $stmt = $conn->prepare("INSERT INTO products (name, description, price, stock, category_id, image) 
+                            VALUES (:name, :description, :price, :stock, :category_id, :image)");  
     $stmt->execute([  
-        ':name' => $name,  
+        ':name' => $name,
+        ':description' => $description,   
         ':price' => $price,  
         ':stock' => $stock,  
         ':category_id' => $category_id,  
@@ -159,7 +172,7 @@ button:hover {
 
     <div class="logo">
         <a href="admin_dashboard.php">
-            <img src="../assets/images/logo.png" alt="Logo">
+            <img src="assets/images/logo.png" alt="Logo">
         </a>
     </div>
 
@@ -185,6 +198,9 @@ button:hover {
     <label>Name:</label>
     <input type="text" name="name" required>
 
+    <label>Description:</label>
+    <textarea name="description" rows="4" required></textarea>
+
     <label>Price:</label>
     <input type="number" name="price" step="0.01" required>
 
@@ -195,7 +211,7 @@ button:hover {
     <select name="category_id" required>  
         <option value="">-- Select Category --</option>  
         <?php foreach($categories as $c): ?>  
-            <option value="<?= $c['category_id'] ?>">
+            <option value="<?= $c['id'] ?>">
                 <?= htmlspecialchars($c['name']) ?>
             </option>  
         <?php endforeach; ?>  

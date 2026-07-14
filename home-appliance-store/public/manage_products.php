@@ -9,11 +9,29 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../config/database.php';
 
+if (!isset($conn)) {
+    if (isset($pdo)) {
+        $conn = $pdo;
+    } elseif (isset($db)) {
+        $conn = $db;
+    }
+}
+
+// Ensure we have a valid PDO connection
+if (!isset($conn) || !($conn instanceof PDO)) {
+    // If the included config used a different variable name, try common ones
+    if (isset($mysqli) && $mysqli instanceof mysqli) {
+        // convert mysqli to PDO is non-trivial; show an error instead
+        die('Database connection is using mysqli. Please provide a PDO connection in config/database.php');
+    }
+    die('Database connection not found. Please check config/database.php');
+}
+
 // Fetch products with categories
 $sql = "SELECT p.*, c.name AS category_name 
         FROM products p
-        LEFT JOIN categories c ON p.category_id = c.category_id
-        ORDER BY p.product_id DESC";
+        LEFT JOIN categories c ON p.category_id = c.id
+        ORDER BY p.id DESC";
 
 $stmt = $conn->prepare($sql);
 $stmt->execute();
@@ -174,8 +192,8 @@ foreach ($products as $p):
     <td><?= number_format($p['price']) ?></td>
     <td><?= $p['stock'] ?></td>
     <td class="action">
-        <a href="edit_product.php?id=<?= $p['product_id'] ?>">Edit</a> |
-        <a href="delete_product.php?id=<?= $p['product_id'] ?>"
+        <a href="edit_product.php?id=<?= $p['id'] ?>">Edit</a> |
+        <a href="delete_product.php?id=<?= $p['id'] ?>"
            onclick="return confirm('Are you sure you want to delete this product?')">
            Delete
         </a>

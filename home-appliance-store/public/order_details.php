@@ -1,229 +1,523 @@
 <?php
 session_start();
+
 require_once __DIR__ . '/../config/database.php';
 
-// Check login
+$db = new Database();
+$conn = $db->connect();
+
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
+
 $user_id = $_SESSION['user_id'];
-$role = $_SESSION['role'] ?? '';
+$role = $_SESSION['role'] ?? 'customer';
 $name = $_SESSION['name'] ?? 'User';
+
 $order_id = $_GET['order_id'] ?? null;
+
 
 if (!$order_id) {
     die("Order ID is required");
 }
 
+
 /* ================= FETCH ORDER ================= */
+
 if ($role === 'admin') {
+
     $stmt = $conn->prepare("
-        SELECT o.order_id, o.order_date, o.status, u.name AS customer_name
+        SELECT 
+            o.id,
+            o.created_at,
+            o.status,
+            o.total,
+            u.name AS customer_name
+
         FROM orders o
-        LEFT JOIN users u ON o.user_id = u.user_id
-        WHERE o.order_id = :order_id
+
+        LEFT JOIN users u 
+        ON o.user_id = u.id
+
+        WHERE o.id = :order_id
     ");
-    $stmt->execute(['order_id' => $order_id]);
-} else {
-    $stmt = $conn->prepare("
-        SELECT o.order_id, o.order_date, o.status
-        FROM orders o
-        WHERE o.order_id = :order_id AND o.user_id = :user_id
-    ");
+
+
     $stmt->execute([
-        'order_id' => $order_id,
-        'user_id'  => $user_id
+        ':order_id'=>$order_id
     ]);
+
+
+} else {
+
+
+    $stmt = $conn->prepare("
+        SELECT 
+            id,
+            created_at,
+            status,
+            total
+
+        FROM orders
+
+        WHERE id = :order_id
+        AND user_id = :user_id
+    ");
+
+
+    $stmt->execute([
+        ':order_id'=>$order_id,
+        ':user_id'=>$user_id
+    ]);
+
 }
 
+
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+
 if (!$order) {
     die("Order not found");
 }
 
-/* ================= TIME CHECK ================= */
-$orderTime = !empty($order['order_date']) ? strtotime($order['order_date']) : 0;
+
+
+/* ================= CANCEL CHECK ================= */
+
+
+$orderTime = strtotime($order['created_at']);
+
 $currentTime = time();
-$minutesPassed = $orderTime ? (($currentTime - $orderTime) / 60) : 999;
+
+$minutesPassed = ($currentTime - $orderTime) / 60;
+
 
 $canCancel = (
-    $role !== 'admin' &&
-    $order['status'] === 'pending' &&
-    $minutesPassed <= 60
+
+    $role !== 'admin'
+    &&
+    $order['status'] === 'Pending'
+    &&
+    $minutesPassed <= 30
+
 );
 
-/* ================= FETCH ITEMS ================= */
+
+
+/* ================= FETCH ORDER ITEMS ================= */
+
+
 $stmt = $conn->prepare("
-    SELECT oi.quantity, p.name, p.price, p.image
+
+    SELECT 
+
+    oi.quantity,
+    oi.price,
+    oi.subtotal,
+
+    p.name,
+    p.image
+
+
     FROM order_items oi
-    JOIN products p ON oi.product_id = p.product_id
+
+
+    JOIN products p
+
+    ON oi.product_id = p.id
+
+
     WHERE oi.order_id = :order_id
+
 ");
-$stmt->execute(['order_id' => $order_id]);
+
+
+$stmt->execute([
+
+    ':order_id'=>$order_id
+
+]);
+
+
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
 ?>
+
+
 <!DOCTYPE html>
-<html lang="en">
+
+<html>
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Order #<?= htmlspecialchars($order['order_id']) ?> Details</title>
+
+<title>Order Details</title>
+
+
 <style>
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f4;
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+padding:20px;
 }
 
-/* Header with logo */
-.header {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: #fff;
-    border-bottom: 1px solid #ddd;
-}
-.logo-img {
-    height: 50px;
-    width: auto;
-    object-fit: contain;
+
+.container{
+
+background:white;
+padding:20px;
+border-radius:8px;
+
 }
 
-/* User profile */
-.user-options {
-    padding: 10px 20px;
-    background: #fff;
-    font-size: 14px;
-    border-bottom: 1px solid #ddd;
+
+table{
+
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+
 }
 
-/* Order details container */
-.container {
-    padding: 15px 20px;
+
+th,td{
+
+border:1px solid #ddd;
+padding:10px;
+text-align:center;
+
 }
 
-/* Status styles */
-.status-pending { color: orange; font-weight: bold; }
-.status-confirmed { color: green; font-weight: bold; }
-.status-cancelled { color: red; font-weight: bold; }
 
-/* Order items table */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-}
-th, td {
-    border: 1px solid #ccc;
-    padding: 10px;
-    text-align: center;
-}
-th { background: #eee; }
-img:not(.logo-img) { width: 80px; height: 80px; object-fit: cover; }
+img{
 
-/* Buttons */
-button {
-    padding: 6px 10px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.cancel-btn { background: #f44336; color: #fff; border: none; }
-.update-btn { background: #00bcd4; color: #fff; border: none; }
+width:70px;
+height:70px;
+object-fit:cover;
 
-/* Back link */
-.back-link { display: inline-block; margin-top: 15px; text-decoration: none; color: #007bff; }
-.back-link:hover { text-decoration: underline; }
+}
+
+
+.pending{
+
+color:orange;
+font-weight:bold;
+
+}
+
+
+.processing{
+
+color:blue;
+font-weight:bold;
+
+}
+
+
+.completed{
+
+color:green;
+font-weight:bold;
+
+}
+
+
+.cancelled{
+
+color:red;
+font-weight:bold;
+
+}
+
+
+button{
+
+padding:8px;
+cursor:pointer;
+
+}
+
+
+.cancel-btn{
+
+background:red;
+color:white;
+border:none;
+
+}
+
+
+.update-btn{
+
+background:#00bcd4;
+color:white;
+border:none;
+
+}
+
+
 </style>
+
+
 </head>
+
+
 <body>
 
-<header class="header">
-    <img src="assets/images/logo.png" alt="Logo" class="logo-img">
-</header>
-
-<div class="user-options">
-    Hello, <?= htmlspecialchars($name) ?> 👋 | Role: <strong><?= htmlspecialchars($role) ?></strong>
-</div>
 
 <div class="container">
-    <h2>Order Details</h2>
-    <p>Status: <span class="status-<?= strtolower($order['status']) ?>"><?= htmlspecialchars($order['status']) ?></span></p>
 
-    <?php if ($canCancel): ?>
-        <form method="post" action="api/orders/cancel.php">
-            <input type="hidden" name="order_id" value="<?= $order['order_id'] ?>">
-            <button type="submit" class="cancel-btn">Cancel Order</button>
-        </form>
-    <?php elseif ($role !== 'admin' && $order['status'] === 'pending'): ?>
-        <p style="color:gray;">❌ Cancellation time expired (60 minutes passed)</p>
-    <?php endif; ?>
 
-    <?php if ($role === 'admin'): ?>
-        <p>
-        Change Status:
-        <select id="statusSelect">
-            <option value="pending" <?= $order['status']==='pending'?'selected':'' ?>>Pending</option>
-            <option value="confirmed" <?= $order['status']==='confirmed'?'selected':'' ?>>Confirmed</option>
-            <option value="cancelled" <?= $order['status']==='cancelled'?'selected':'' ?>>Cancelled</option>
-        </select>
-        <button type="button" onclick="updateStatus()" class="update-btn">Update</button>
-        </p>
-        <p>Customer: <?= htmlspecialchars($order['customer_name'] ?? 'Unknown') ?></p>
-    <?php else: ?>
-        <p>Customer: <?= htmlspecialchars($_SESSION['name'] ?? 'Customer') ?></p>
-    <?php endif; ?>
+<h2>Order Details</h2>
 
-    <p>Date: <?= htmlspecialchars($order['order_date']) ?></p>
 
-    <h3>Items in this order:</h3>
+<p>
+Order ID:
+<strong>
+<?= $order['id'] ?>
+</strong>
+</p>
 
-    <?php if (empty($items)): ?>
-        <p>No items found for this order.</p>
-    <?php else: ?>
-    <table>
-        <tr>
-            <th>Image</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Quantity</th>
-            <th>Total</th>
-        </tr>
-        <?php foreach ($items as $i): ?>
-        <tr>
-            <td><img src="assets/images/<?= htmlspecialchars($i['image'] ?? 'default.png') ?>" alt="<?= htmlspecialchars($i['name']) ?>"></td>
-            <td><?= htmlspecialchars($i['name']) ?></td>
-            <td>TSH <?= number_format($i['price'], 2) ?></td>
-            <td><?= $i['quantity'] ?></td>
-            <td>TSH <?= number_format($i['price'] * $i['quantity'], 2) ?></td>
-        </tr>
-        <?php endforeach; ?>
-    </table>
-    <?php endif; ?>
 
-    <a href="<?= $role === 'admin' ? 'manage_orders.php' : 'orders.php' ?>" class="back-link">⬅ Back to Orders</a>
+<p>
+Status:
+
+<span class="<?= strtolower($order['status']) ?>">
+
+<?= htmlspecialchars($order['status']) ?>
+
+</span>
+
+</p>
+
+
+
+<p>
+Date:
+<?= $order['created_at'] ?>
+</p>
+
+
+<p>
+Total:
+TSH <?= number_format($order['total'],2) ?>
+</p>
+
+
+
+<?php if($role === 'admin'): ?>
+
+
+<p>
+Customer:
+
+<?= htmlspecialchars($order['customer_name']) ?>
+
+</p>
+
+
+
+<select id="statusSelect">
+
+
+<option value="Pending">
+Pending
+</option>
+
+
+<option value="Processing">
+Processing
+</option>
+
+
+<option value="Completed">
+Completed
+</option>
+
+
+<option value="Cancelled">
+Cancelled
+</option>
+
+
+</select>
+
+
+
+<button onclick="updateStatus()" class="update-btn">
+Update Status
+</button>
+
+
+<?php endif; ?>
+
+
+
+<?php if($canCancel): ?>
+
+
+<form method="post" action="api/orders/cancel.php">
+
+<input type="hidden" 
+name="order_id"
+value="<?= $order['id'] ?>">
+
+
+<button class="cancel-btn">
+
+Cancel Order
+
+</button>
+
+
+</form>
+
+
+<?php endif; ?>
+
+
+
+<h3>Products</h3>
+
+
+
+<table>
+
+
+<tr>
+
+<th>Image</th>
+<th>Name</th>
+<th>Price</th>
+<th>Quantity</th>
+<th>Total</th>
+
+</tr>
+
+
+
+<?php foreach($items as $item): ?>
+
+
+<tr>
+
+
+<td>
+
+<img src="assets/images/<?= htmlspecialchars($item['image'] ?? 'default.png') ?>">
+
+</td>
+
+
+<td>
+
+<?= htmlspecialchars($item['name']) ?>
+
+</td>
+
+
+<td>
+
+TSH <?= number_format($item['price'],2) ?>
+
+</td>
+
+
+<td>
+
+<?= $item['quantity'] ?>
+
+</td>
+
+
+<td>
+
+TSH <?= number_format($item['subtotal'],2) ?>
+
+</td>
+
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+</table>
+
+
+
+<br>
+
+
+<a href="<?= $role==='admin'?'manage_orders.php':'orders.php' ?>">
+
+⬅ Back
+
+</a>
+
+
 </div>
 
+
+
 <script>
-function updateStatus() {
-    fetch('api/orders/update_status.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            order_id: <?= (int)$order['order_id'] ?>,
-            status: document.getElementById('statusSelect').value
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert(data.message);
-        if (data.status) location.reload();
-    })
-    .catch(err => console.error(err));
+
+
+function updateStatus(){
+
+
+fetch('api/orders/update_status.php',{
+
+method:'POST',
+
+headers:{
+'Content-Type':'application/json'
+},
+
+
+body:JSON.stringify({
+
+order_id: <?= $order['id'] ?>,
+
+status:
+document.getElementById('statusSelect').value
+
+})
+
+
+})
+
+
+.then(res=>res.json())
+
+.then(data=>{
+
+alert(data.message);
+
+
+if(data.status){
+
+location.reload();
+
 }
+
+
+});
+
+
+}
+
+
 </script>
 
+
 </body>
+
+
 </html>

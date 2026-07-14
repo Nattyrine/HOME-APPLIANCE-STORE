@@ -1,6 +1,12 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../classes/User.php';
+
+$database = new Database();
+$conn = $database->connect();
+
+$userModel = new User($conn);
 
 $message = "";
 
@@ -10,13 +16,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $password = $_POST["password"];
 
     if ($email && $password) {
-        $stmt = $conn->prepare("SELECT * FROM users WHERE email = :email");
-        $stmt->execute([':email' => $email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $user = $userModel->findByEmail($email);
         if ($user && password_verify($password, $user['password_hash'])) {
             // Set session
-            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['user_id'] = $user['id'];
             $_SESSION['name'] = $user['name'];
             $_SESSION['role'] = $user['role'];
 

@@ -27,7 +27,7 @@ $messages = [
     "Welcome! Reach out to us for assistance or inquiries.",
     "Contact us now and discover our exclusive offers!",
     "Our team is here to help you shop smart.",
-    "Have questions? Let Nattyrine Home Appliances assist you!"
+    "Have questions? Let NattyHomeAppliances assist you!"
 ];
 $msgIndex = array_rand($messages);
 $promoMessage = $messages[$msgIndex];
@@ -54,7 +54,7 @@ header img.expanded { transform:scale(2); }
 nav a { margin-left:15px; text-decoration:none; color:#002b5c; font-weight:bold; }
 
 /* Promo bar */
-.promo-bar { background:#e6f7ff; color:#065f46; padding:15px 20px; font-size:16px; border:1px solid #34d399; border-radius:5px; margin:15px 20px; text-align:center; }
+.promo-bar { background:#e6f7ff; color:#065f46; padding:15px 20px; font-size:16px; border:1px solid #34d399; border-radius:5px; margin:15px 20px; text-align:center;transition:opacity 0.5s ease;}
 
 /* Container */
 .container { max-width:900px; margin:30px auto; background:rgba(255,255,255,0.95); padding:25px; border-radius:8px; box-shadow:0 0 15px rgba(0,0,0,0.15); }
@@ -80,8 +80,6 @@ h1 { color:#1e3a8a; text-align:center; margin-bottom:20px; }
     </div>
     <nav>
         <a href="index.php">Home</a>
-        <a href="about.php">About</a>
-        <a href="contact.php">Contact</a>
         <?php if($isLoggedIn): ?>
             <a href="profile.php">Profile</a>
             <a href="logout.php">Logout</a>
@@ -92,10 +90,10 @@ h1 { color:#1e3a8a; text-align:center; margin-bottom:20px; }
     </nav>
 </header>
 
-<div class="promo-bar"><?= htmlspecialchars($promoMessage) ?></div>
+<div class="promo-bar" id="dynamic-promo"></div>
 
 <div class="container">
-    <h1>Contact Natty Home Appliances</h1>
+    <h1>Our Contacts</h1>
 
     <p>We at Natty Home Appliances are committed to providing high-quality appliances and excellent customer service. Feel free to reach out to us for inquiries, support, or to learn more about our services.</p>
     
@@ -149,8 +147,40 @@ h1 { color:#1e3a8a; text-align:center; margin-bottom:20px; }
 
 <script>
 const logo = document.getElementById('logo');
-logo.addEventListener('click', () => { logo.classList.toggle('expanded'); });
-</script>
+logo.addEventListener('click', () => { 
+    logo.classList.toggle('expanded'); 
+});
 
+
+const messages = <?= json_encode($messages) ?>;
+
+let index = 0;
+const promo = document.getElementById("dynamic-promo");
+
+function changeMessage(){
+
+    promo.style.opacity = 0;
+
+    setTimeout(() => {
+
+        promo.innerHTML = messages[index];
+        promo.style.opacity = 1;
+
+        index++;
+
+        if(index >= messages.length){
+            index = 0;
+        }
+
+    },500);
+}
+
+// message ya kwanza
+changeMessage();
+
+// rotate kila sekunde 4
+setInterval(changeMessage,4000);
+
+</script>
 </body>
 </html>

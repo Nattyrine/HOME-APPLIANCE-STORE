@@ -70,9 +70,25 @@ body {
     margin: 0;  
     font-size: 14px;  
 }  
-.status-pending { color: orange; font-weight: bold; }  
-.status-confirmed { color: green; font-weight: bold; }  
-.status-cancelled { color: red; font-weight: bold; }  
+.status-pending {
+    color: orange;
+    font-weight: bold;
+}
+
+.status-processing {
+    color: blue;
+    font-weight: bold;
+}
+
+.status-completed {
+    color: green;
+    font-weight: bold;
+}
+
+.status-cancelled {
+    color: red;
+    font-weight: bold;
+}  
 .view-items-btn {  
     padding: 6px 10px;  
     background: #00bcd4;  
@@ -98,19 +114,41 @@ fetch('api/orders/read.php')
         return;  
     }  
   
-    orders.forEach(o => {  
-        const div = document.createElement('div');  
-        div.className = 'order-card';  
-        div.innerHTML = `  
-            <div class="order-info">  
-                <p><strong>Order</p>  
-                <p>Date: ${o.order_date}</p>  
-                <p>Status: <span class="status-${o.status}">${o.status}</span></p>  
-            </div>  
-            <a href="order_details.php?order_id=${o.order_id}" class="view-items-btn">View Items</a>  
-        `;  
-        container.appendChild(div);  
-    });  
+   orders.forEach(o => {
+
+    const div = document.createElement('div');
+
+    div.className = 'order-card';
+
+    div.innerHTML = `
+        <div class="order-info">
+
+            <p><strong>Order #${o.id}</strong></p>
+
+            <p>Date: ${o.created_at}</p>
+
+            <p>
+                Status:
+                <span class="status-${o.status.toLowerCase()}">
+                    ${o.status}
+                </span>
+            </p>
+
+            <p>
+                Total: TSH ${o.total}
+            </p>
+
+        </div>
+
+        <a href="order_details.php?order_id=${o.id}" 
+        class="view-items-btn">
+        View Items
+        </a>
+    `;
+
+    container.appendChild(div);
+
+});  
 })  
 .catch(err => {  
     console.error(err);  

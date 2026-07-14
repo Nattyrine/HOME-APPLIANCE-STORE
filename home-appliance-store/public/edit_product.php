@@ -7,6 +7,19 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
 
 require_once __DIR__ . '/../config/database.php';
 
+// Ensure $conn (PDO) is available. If the included file did not define it,
+// attempt a sensible default local XAMPP MySQL connection.
+if (!isset($conn)) {
+    try {
+        $conn = new PDO('mysql:host=127.0.0.1;dbname=home_appliance_store;charset=utf8', 'root', '');
+        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    } catch (PDOException $e) {
+        // If we cannot connect, stop with a simple message.
+        echo 'Database connection error.';
+        exit();
+    }
+}
+
 $product_id = $_GET['id'] ?? null;
 if (!$product_id) {
     header("Location: manage_products.php");
@@ -35,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $image_name = $product['image'];
     if (!empty($_FILES['image']['name'])) {
         $image_name = time() . '_' . $_FILES['image']['name'];
-        move_uploaded_file($_FILES['image']['tmp_name'], __DIR__ . '/../assets/images/' . $image_name);
+        move_uploaded_file($_FILES['image']['tmp_name'], __DIR__ . '/assets/images/' . $image_name);
     }
 
     $update = $conn->prepare("UPDATE products 

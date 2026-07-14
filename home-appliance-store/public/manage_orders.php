@@ -2,6 +2,37 @@
 session_start();
 require_once __DIR__ . '/../config/database.php';
 
+// Ensure $conn is available (database.php may expose PDO in different variable names)
+if (!isset($conn)) {
+    if (isset($pdo) && $pdo instanceof PDO) {
+        $conn = $pdo;
+    } elseif (isset($db) && $db instanceof PDO) {
+        $conn = $db;
+    } elseif (defined('DB_DSN') && defined('DB_USER')) {
+        try {
+            $conn = new PDO(DB_DSN, DB_USER, defined('DB_PASS') ? DB_PASS : null);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        } catch (Exception $e) {
+            die('Database connection error: ' . $e->getMessage());
+        }
+    } else {
+        // Try common environment variables
+        $dsn = getenv('DB_DSN') ?: (getenv('DB_DRIVER') && getenv('DB_HOST') && getenv('DB_NAME') ? getenv('DB_DRIVER') . ":host=" . getenv('DB_HOST') . ";dbname=" . getenv('DB_NAME') : null);
+        $user = getenv('DB_USER');
+        $pass = getenv('DB_PASS');
+        if ($dsn) {
+            try {
+                $conn = new PDO($dsn, $user ?: null, $pass ?: null);
+                $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            } catch (Exception $e) {
+                die('Database connection error: ' . $e->getMessage());
+            }
+        } else {
+            die('Database connection not configured.');
+        }
+    }
+}
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     header("Location: login.php");
     exit();
@@ -118,10 +149,16 @@ tr:nth-child(even) {
 
 <?php
 $stmt = $conn->prepare("
-    SELECT o.order_id, o.order_date, o.status, u.name AS customer_name
-    FROM orders o
-    LEFT JOIN users u ON o.user_id = u.user_id
-    ORDER BY o.order_id DESC
+SELECT
+    o.id,
+    o.created_at,
+    o.status,
+    o.total,
+    u.name AS customer_name
+FROM orders o
+LEFT JOIN users u
+ON o.user_id = u.id
+ORDER BY o.id DESC
 ");
 $stmt->execute();
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -131,16 +168,16 @@ foreach ($orders as $o):
 ?>
 <tr>
     
-    <td><?= $o['order_id'] ?></td>
+    <td><?= $o['id'] ?></td>
     <td><?= htmlspecialchars($o['customer_name'] ?? 'Guest') ?></td>
-    <td><?= $o['order_date'] ?></td>
+    <td><?= $o['created_at'] ?></td>
     <td>
         <span class="status-<?= strtolower($o['status']) ?>">
             <?= htmlspecialchars($o['status']) ?>
         </span>
     </td>
     <td class="action">
-        <a href="order_details.php?order_id=<?= $o['order_id'] ?>">View Items</a>
+        <a href="order_details.php?order_id=<?= $o['id'] ?>">View Items</a>
     </td>
 </tr>
 <?php endforeach; ?>

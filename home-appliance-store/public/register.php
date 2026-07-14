@@ -1,6 +1,12 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../classes/User.php';
+
+$database = new Database();
+$conn = $database->connect();
+
+$user = new User($conn);
 
 $message = "";
 
@@ -19,14 +25,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($name && $email && $password) {
         $hashed = password_hash($password, PASSWORD_DEFAULT);
 
-        $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = :email");
-        $stmt->execute([':email' => $email]);
+        $existingUser = $user->findByEmail($email);
 
-        if ($stmt->rowCount() > 0) {
+        if ($existingUser) {
             $message = "Email already registered";
         } else {
-            $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash) VALUES (:name, :email, :password)");
-            if ($stmt->execute([':name' => $name, ':email' => $email, ':password' => $hashed])) {
+            if ($user->register($name, $email, $hashed)) {
                 header("Location: login.php");
                 exit();
             } else {
@@ -46,8 +50,8 @@ $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 $categoryProducts = [];
 foreach ($categories as $cat) {
     $prodStmt = $conn->prepare("SELECT * FROM products WHERE category_id=:cat_id ORDER BY name ASC");
-    $prodStmt->execute([':cat_id'=>$cat['category_id']]);
-    $categoryProducts[$cat['category_id']] = $prodStmt->fetchAll(PDO::FETCH_ASSOC);
+    $prodStmt->execute([':cat_id' => $cat['id']]);
+    $categoryProducts[$cat['id']] = $prodStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 ?>
 
@@ -168,8 +172,8 @@ nav a { margin-left:15px; text-decoration:none; color:white; font-weight:bold; }
         <div class="category">
             <h3><?= htmlspecialchars($cat['name']) ?></h3>
             <div class="products">
-                <?php if(isset($categoryProducts[$cat['category_id']]) && count($categoryProducts[$cat['category_id']])>0): ?>
-                    <?php foreach($categoryProducts[$cat['category_id']] as $prod): ?>
+                <?php if(isset($categoryProducts[$cat['id']]) && count($categoryProducts[$cat['id']]) > 0): ?>
+                    <?php foreach($categoryProducts[$cat['id']] as $prod): ?>
                         <div class="product-card">
                             <img src="assets/images/<?= $prod['image'] ?? 'default.png' ?>" alt="<?= htmlspecialchars($prod['name']) ?>">
                             <h4><?= htmlspecialchars($prod['name']) ?></h4>

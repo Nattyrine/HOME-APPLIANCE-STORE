@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -18,13 +18,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare("
             UPDATE users 
             SET name = :name, email = :email 
-            WHERE user_id = :id
+            WHERE id = :id
         ");
         $stmt->execute([
             ':name' => $name,
             ':email' => $email,
             ':id' => $user_id
         ]);
+        $_SESSION['name'] = $name;
 
         $success = "Profile updated successfully";
     }
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmt = $conn->prepare("
     SELECT name, email, role, created_at 
     FROM users 
-    WHERE user_id = :id
+    WHERE id = :id
 ");
 $stmt->execute([':id' => $user_id]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);

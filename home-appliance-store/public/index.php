@@ -212,8 +212,7 @@ button:disabled {
         <div class="menu-icon" id="menuToggle">☰</div>  
         <img src="assets/images/logo.png" alt="Logo" class="logo-img" id="logo">  
         <div class="menu-content" id="menuContent">  
-            <a href="orders.php">My orders</a>
-            <a href="profile.php">About you</a>  
+            <a href="orders.php">My orders</a> 
             <a href="contact.php">Contact us</a>  
         </div>  
     </div>  
@@ -302,7 +301,7 @@ function displayProducts(products) {
             <p><strong>TSH ${p.price}</strong></p>  
             <p>Stock: ${p.stock}</p>  
             <p>${p.category_name || 'Uncategorized'}</p>  
-            <button ${p.stock===0?'disabled':''} onclick="addToCart(${p.product_id})">  
+            <button ${p.stock===0?'disabled':''} onclick="addToCart(${p.id})">  
                 ${p.stock===0?'Out of Stock':'Add to Cart'}  
             </button>  
         `;  
